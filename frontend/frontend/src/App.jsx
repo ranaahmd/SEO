@@ -112,7 +112,6 @@ function App() {
               </div>
             )}
 
-            {/* زر PDF الصغير */}
             <div className="flex justify-end pt-4 border-t border-white/10">
               <button 
                 onClick={downloadPDF}
