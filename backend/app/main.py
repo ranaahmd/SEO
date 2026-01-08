@@ -10,7 +10,6 @@ import os
 
 app = FastAPI()
 
-# إعدادات CORS للسماح بالوصول من المتصفح
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -30,97 +29,102 @@ async def perform_analysis(url: str):
             response = await client.get(url, headers=headers)
             load_time = round(time.time() - start_time, 2)
         except Exception as e:
-            return {"error": f"Failed to connect: {str(e)}"}
+            return {"error": f"Connection failed: {str(e)}"}
 
         soup = BeautifulSoup(response.text, "lxml")
         
-        # 1. جمع البيانات الخام
+        # استخراج البيانات
         title = soup.title.string.strip() if soup.title else None
         desc_tag = soup.find("meta", attrs={"name": "description"}) or soup.find("meta", attrs={"property": "og:description"})
         description = desc_tag["content"].strip() if desc_tag else None
-        h1_tags = [h.text.strip() for h in soup.find_all("h1")]
+        h1_tags = soup.find_all("h1")
         images = soup.find_all("img")
-        images_missing_alt = [img.get('src', 'unknown') for img in images if not img.get('alt')]
+        images_missing_alt = [img for img in images if not img.get('alt')]
         links_count = len(soup.find_all("a"))
 
-        # 2. نظام التقييم والنصائح
         total_score = 0
-        details = []
-        recommendations = []
+        checks = [] # لتخزين النتائج التفصيلية للعرض
 
-        # تقييم العنوان (20 درجة)
+        # 1. فحص العنوان (Title Tag)
+        title_status = "Failed"
+        title_msg = "Title tag is missing."
+        current_title = "None"
         if title:
+            current_title = title
             if 10 <= len(title) <= 60:
+                title_status = "Passed"
+                title_msg = "Title is perfectly optimized."
                 total_score += 20
-                details.append(("Title Tag", "Perfect Length", "20/20"))
             else:
+                title_status = "Warning"
+                title_msg = f"Title is {len(title)} chars. Ideally 10-60."
                 total_score += 10
-                details.append(("Title Tag", f"Length Issue ({len(title)})", "10/20"))
-                recommendations.append(f"Optimize Title: Current length is {len(title)}. Aim for 50-60 chars.")
-        else:
-            details.append(("Title Tag", "Missing", "0/20"))
-            recommendations.append("Critical: Add a Title tag to improve search visibility.")
+        checks.append({"name": "Title Tag", "status": title_status, "message": title_msg, "value": current_title})
 
-        # تقييم الوصف (20 درجة)
-        if description:
-            total_score += 20
-            details.append(("Meta Description", "Found", "20/20"))
-        else:
-            details.append(("Meta Description", "Missing", "0/20"))
-            recommendations.append("Add Meta Description: This helps users understand your page in search results.")
+        # 2. فحص الوصف (Meta Description)
+        desc_status = "Passed" if description else "Failed"
+        desc_msg = "Meta description is present." if description else "Meta description is missing."
+        if description: total_score += 20
+        checks.append({"name": "Meta Description", "status": desc_status, "message": desc_msg, "value": description or "None"})
 
-        # تقييم عناوين H1 (15 درجة)
-        if len(h1_tags) == 1:
+        # 3. فحص الـ H1 (H1 Header)
+        h1_count = len(h1_tags)
+        if h1_count == 1:
+            h1_status = "Passed"
+            h1_msg = "Exactly one H1 tag found. Excellent!"
             total_score += 15
-            details.append(("H1 Header", "Correct (1 found)", "15/15"))
-        elif len(h1_tags) == 0:
-            details.append(("H1 Header", "Missing", "0/15"))
-            recommendations.append("Add H1 Tag: Your page needs one main heading (H1) for structure.")
+        elif h1_count == 0:
+            h1_status = "Failed"
+            h1_msg = "No H1 tag found. Your page needs a main heading."
+            total_score += 0
         else:
+            h1_status = "Warning"
+            h1_msg = f"Multiple H1 tags ({h1_count}) found. Use only one."
             total_score += 5
-            details.append(("H1 Header", f"Multiple ({len(h1_tags)})", "5/15"))
-            recommendations.append("Fix H1: Use only ONE H1 tag per page. Use H2-H3 for subheadings.")
+        checks.append({"name": "H1 Header", "status": h1_status, "message": h1_msg, "value": f"{h1_count} found"})
 
-        # تقييم الصور (15 درجة)
-        if images and not images_missing_alt:
+        # 4. فحص الصور (Image Alt Text)
+        missing_count = len(images_missing_alt)
+        if images and missing_count == 0:
+            img_status = "Passed"
+            img_msg = "All images have descriptive alt text."
             total_score += 15
-            details.append(("Image Alt Text", "All images have Alt", "15/15"))
         elif not images:
-             total_score += 15
-             details.append(("Image Alt Text", "No images to analyze", "15/15"))
+            img_status = "Passed"
+            img_msg = "No images found, nothing to optimize."
+            total_score += 15
         else:
+            img_status = "Warning"
+            img_msg = f"{missing_count} images are missing alt text."
             total_score += 5
-            details.append(("Image Alt Text", f"{len(images_missing_alt)} missing Alt", "5/15"))
-            recommendations.append(f"Add Alt Text: {len(images_missing_alt)} images are missing descriptions for SEO and accessibility.")
+        checks.append({"name": "Image Alt Text", "status": img_status, "message": img_msg, "value": f"{missing_count} issues"})
 
-        # تقييم السرعة (15 درجة)
+        # 5. فحص السرعة (Load Speed)
         if load_time < 2.0:
+            speed_status = "Passed"
+            speed_msg = f"Page loaded fast in {load_time}s."
             total_score += 15
-            details.append(("Page Speed", f"Fast ({load_time}s)", "15/15"))
         else:
+            speed_status = "Warning"
+            speed_msg = f"Page is slow ({load_time}s). Target < 2s."
             total_score += 7
-            details.append(("Page Speed", f"Slow ({load_time}s)", "7/15"))
-            recommendations.append("Improve Speed: Page takes over 2s to load. Optimize images or scripts.")
+        checks.append({"name": "Load Speed", "status": speed_status, "message": speed_msg, "value": f"{load_time}s"})
 
-        # تقييم الروابط (15 درجة)
-        if links_count > 0:
-            total_score += 15
-            details.append(("Internal Links", f"Found {links_count}", "15/15"))
-        else:
-            details.append(("Internal Links", "No links found", "0/15"))
-            recommendations.append("Build Links: Add internal or external links to help crawlers find your content.")
+        # 6. فحص الروابط (Links)
+        link_status = "Passed" if links_count > 0 else "Failed"
+        link_msg = f"Found {links_count} links." if links_count > 0 else "No links found."
+        if links_count > 0: total_score += 15
+        checks.append({"name": "Links", "status": link_status, "message": link_msg, "value": f"{links_count} links"})
 
         return {
             "url": url,
             "score": total_score,
-            "details": details,
-            "recommendations": recommendations,
-            "title": title or "N/A",
-            "description": description or "N/A"
+            "checks": checks, # هذه القائمة سهلة جداً للعرض في الـ Frontend
+            "summary": f"Your SEO Score is {total_score}/100"
         }
 
 @app.get("/analyze")
-async def analyze_seo(url: str):
+async def analyze_endpoint(url: str):
     return await perform_analysis(url)
 
 @app.get("/download-pdf")
@@ -128,63 +132,53 @@ async def download_pdf(url: str):
     data = await perform_analysis(url)
     if "error" in data: return data
     
-    file_path = "SEO_Action_Plan.pdf"
+    file_path = "SEO_Detailed_Report.pdf"
     c = canvas.Canvas(file_path, pagesize=letter)
     width, height = letter
 
-    # --- Header ---
+    # Header
     c.setFont("Helvetica-Bold", 22)
-    c.setFillColorRGB(0.1, 0.3, 0.6)
-    c.drawString(50, height - 50, "SEO Analysis & Action Report")
+    c.setFillColorRGB(0.1, 0.4, 0.7)
+    c.drawString(50, height - 60, "SEO Performance Report")
     
-    # --- URL & Score ---
-    c.setFont("Helvetica", 11)
-    c.setFillColorRGB(0, 0, 0)
-    c.drawString(50, height - 80, f"Analyzed URL: {url}")
-    
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(50, height - 110, f"Total Score: {data['score']}/100")
-    c.line(50, height - 120, width - 50, height - 120)
-
-    # --- Results Table ---
-    y = height - 150
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(50, y, "Test Item")
-    c.drawString(250, y, "Finding")
-    c.drawString(450, y, "Score")
-    
-    y -= 20
     c.setFont("Helvetica", 10)
-    for item, status, score in data['details']:
-        c.drawString(50, y, item)
-        c.drawString(250, y, status)
-        c.drawString(450, y, score)
-        y -= 20
+    c.setFillColorRGB(0.4, 0.4, 0.4)
+    c.drawString(50, height - 80, f"URL: {url}")
+    
+    # Score Circle (Visual Representation)
+    score = data['score']
+    c.setStrokeColorRGB(0.8, 0.8, 0.8)
+    c.circle(500, height - 70, 40, stroke=1, fill=0)
+    c.setFont("Helvetica-Bold", 20)
+    c.setFillColorRGB(0, 0.5, 0) if score > 70 else c.setFillColorRGB(0.8, 0, 0)
+    c.drawCentredString(500, height - 75, str(score))
 
-    # --- Recommendations Section ---
-    y -= 30
-    c.setFont("Helvetica-Bold", 16)
-    c.setFillColorRGB(0.8, 0.1, 0.1)
-    c.drawString(50, y, "How to Improve Your Score:")
-    c.line(50, y-5, 260, y-5)
-    
-    y -= 30
-    c.setFont("Helvetica", 11)
+    # Table Header
+    y = height - 140
+    c.setFont("Helvetica-Bold", 12)
     c.setFillColorRGB(0, 0, 0)
-    
-    if not data['recommendations']:
-        c.drawString(50, y, "No major issues found. Great job!")
-    else:
-        for rec in data['recommendations']:
-            if y < 50: # إنشاء صفحة جديدة إذا انتهت المساحة
-                c.showPage()
-                y = height - 50
-            c.drawString(50, y, f"- {rec}")
-            y -= 25
+    c.drawString(50, y, "Test Item")
+    c.drawString(180, y, "Status")
+    c.drawString(280, y, "Observations & Recommendations")
+    c.line(50, y - 5, 550, y - 5)
+
+    # Table Body
+    y -= 25
+    for check in data['checks']:
+        c.setFont("Helvetica-Bold", 10)
+        c.drawString(50, y, check['name'])
+        
+        # Color coding status
+        if check['status'] == "Passed": c.setFillColorRGB(0, 0.5, 0)
+        elif check['status'] == "Warning": c.setFillColorRGB(0.6, 0.4, 0)
+        else: c.setFillColorRGB(0.8, 0, 0)
+        
+        c.drawString(180, y, check['status'])
+        
+        c.setFillColorRGB(0, 0, 0)
+        c.setFont("Helvetica", 9)
+        c.drawString(280, y, check['message'])
+        y -= 25
 
     c.save()
     return FileResponse(file_path, filename="SEO_Report.pdf")
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
