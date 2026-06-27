@@ -55,11 +55,23 @@ async def download_pdf(url: str):
     return FileResponse(file_path, filename="SEO_Report.pdf")
 
 
+def _draw_watermark(c, width, height):
+    c.saveState()
+    c.setFont("Helvetica-Bold", 72)
+    c.setFillColorRGB(0.92, 0.92, 0.92)
+    c.translate(width / 2, height / 2)
+    c.rotate(40)
+    c.drawCentredString(0, 0, "BoostSEO")
+    c.restoreState()
+
+
 def _build_pdf(data: dict, file_path: str) -> None:
     c = canvas.Canvas(file_path, pagesize=letter)
     width, height = letter
     score = data["score"]
     meta = data["meta"]
+
+    _draw_watermark(c, width, height)
 
     # ── Header ──────────────────────────────────────────────────────────────
     c.setFont("Helvetica-Bold", 22)
@@ -105,6 +117,7 @@ def _build_pdf(data: dict, file_path: str) -> None:
         nonlocal y
         if y < 60:
             c.showPage()
+            _draw_watermark(c, width, height)
             y = height - 50
 
     # ── Category sections ────────────────────────────────────────────────────

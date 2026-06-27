@@ -7,6 +7,55 @@ import About from './About';
 import Contact from './Contact';
 import './App.css';
 
+// ── SVG icons ────────────────────────────────────────────────────────────────
+const IconTag = (p) => (
+    <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+        <line x1="7" y1="7" x2="7.01" y2="7"/>
+    </svg>
+);
+const IconFileText = (p) => (
+    <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+        <polyline points="10 9 9 9 8 9"/>
+    </svg>
+);
+const IconShield = (p) => (
+    <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    </svg>
+);
+const IconZap = (p) => (
+    <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+    </svg>
+);
+const IconSearch = (p) => (
+    <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+);
+const IconDownload = (p) => (
+    <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+    </svg>
+);
+
+const FEATURE_CARDS = [
+    { Icon: IconTag,      label: 'Meta & Social',  desc: 'Title, description, canonical, Open Graph, Twitter Card' },
+    { Icon: IconFileText, label: 'Content',         desc: 'H1/H2/H3 structure, word count, image alt text' },
+    { Icon: IconShield,   label: 'Technical',       desc: 'HTTPS, viewport, favicon, language, structured data' },
+    { Icon: IconZap,      label: 'Performance',     desc: 'Page load speed vs 2-second benchmark' },
+    { Icon: IconSearch,   label: 'Crawlability',    desc: 'robots.txt, sitemap.xml, broken links' },
+    { Icon: IconDownload, label: 'PDF Report',      desc: 'Download a full audit report for any URL' },
+];
+
 const AdBanner = () => (
     <ins
         className="adsbygoogle"
@@ -143,7 +192,7 @@ const Home = () => {
                                 rel="noreferrer"
                                 className="bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-xl border border-white/20 transition-all flex items-center gap-2"
                             >
-                                📥 Download PDF Report
+                                <IconDownload className="w-4 h-4" /> Download PDF Report
                             </a>
                         </div>
                     </div>
@@ -152,18 +201,13 @@ const Home = () => {
                 {/* Feature grid — shown before first audit */}
                 {!data && (
                     <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
-                        {[
-                            { icon: '🏷️', label: 'Meta & Social', desc: 'Title, description, canonical, Open Graph, Twitter Card' },
-                            { icon: '📝', label: 'Content', desc: 'H1/H2/H3 structure, word count, image alt text' },
-                            { icon: '⚙️', label: 'Technical', desc: 'HTTPS, viewport, favicon, language, structured data' },
-                            { icon: '⚡', label: 'Performance', desc: 'Page load speed vs 2-second benchmark' },
-                            { icon: '🔍', label: 'Crawlability', desc: 'robots.txt, sitemap.xml, broken links' },
-                            { icon: '📄', label: 'PDF Report', desc: 'Download a full audit report for any URL' },
-                        ].map((item) => (
-                            <div key={item.label} className="bg-white/5 backdrop-blur-md p-4 rounded-xl border border-white/10">
-                                <div className="text-2xl mb-2">{item.icon}</div>
+                        {FEATURE_CARDS.map((item) => (
+                            <div key={item.label} className="bg-white/5 backdrop-blur-md p-5 rounded-xl border border-white/10">
+                                <div className="w-9 h-9 rounded-lg bg-blue-500/15 flex items-center justify-center mb-3">
+                                    <item.Icon className="w-5 h-5 text-blue-400" />
+                                </div>
                                 <p className="text-white font-semibold text-sm mb-1">{item.label}</p>
-                                <p className="text-gray-400 text-xs">{item.desc}</p>
+                                <p className="text-gray-400 text-xs leading-relaxed">{item.desc}</p>
                             </div>
                         ))}
                     </div>
