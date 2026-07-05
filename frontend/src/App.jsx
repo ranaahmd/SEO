@@ -5,6 +5,7 @@ import CategoryCard from './CategoryCard';
 import PrivacyPolicy from './PrivacyPolicy';
 import About from './About';
 import Contact from './Contact';
+import NotFound from './NotFound';
 import './App.css';
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
@@ -235,6 +236,7 @@ function App() {
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="*" element={<NotFound />} />
         </Routes>
     );
 }
