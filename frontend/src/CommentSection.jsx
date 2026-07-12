@@ -8,6 +8,7 @@ const CommentSection = () => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [body, setBody] = useState('');
+    const [website, setWebsite] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState(null);
 
@@ -40,11 +41,13 @@ const CommentSection = () => {
                 name: trimmedName,
                 email: trimmedEmail,
                 body: trimmedBody,
+                website: website.trim(),
             });
             setComments((prev) => [response.data, ...prev]);
             setName('');
             setEmail('');
             setBody('');
+            setWebsite('');
         } catch (err) {
             if (err.response?.status === 429) {
                 setError('Please wait a bit before submitting another comment.');
@@ -70,6 +73,7 @@ const CommentSection = () => {
                         className="flex-1 p-3 bg-white/5 text-white rounded-lg border border-white/10 outline-none placeholder-gray-500"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
+                        maxLength={100}
                     />
                     <input
                         type="email"
@@ -77,13 +81,25 @@ const CommentSection = () => {
                         className="flex-1 p-3 bg-white/5 text-white rounded-lg border border-white/10 outline-none placeholder-gray-500"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
+                        maxLength={200}
                     />
                 </div>
+                <input
+                    type="text"
+                    name="website"
+                    value={website}
+                    onChange={(e) => setWebsite(e.target.value)}
+                    style={{ position: 'absolute', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }}
+                    tabIndex={-1}
+                    autoComplete="off"
+                    aria-hidden="true"
+                />
                 <textarea
                     placeholder="What do you think of BoostSEO?"
                     className="w-full p-3 bg-white/5 text-white rounded-lg border border-white/10 outline-none placeholder-gray-500 min-h-24"
                     value={body}
                     onChange={(e) => setBody(e.target.value)}
+                    maxLength={2000}
                 />
                 {error && (
                     <p className="text-red-400 bg-red-400/10 p-3 rounded-lg border border-red-400/20 text-sm">

@@ -147,6 +147,61 @@ def test_last_submission_entries_are_pruned_after_expiry(client):
     assert "42.42.42.42" not in comments_api._last_submission
 
 
+def test_honeypot_field_returns_fake_success_without_persisting(client):
+    response = client.post(
+        "/comments",
+        json={
+            "name": "Bot",
+            "email": "bot@example.com",
+            "body": "Buy cheap stuff now!",
+            "website": "http://spam.example.com",
+        },
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["name"] == "Bot"
+    assert data["body"] == "Buy cheap stuff now!"
+    assert "id" in data
+    assert "created_at" in data
+
+    listed = client.get("/comments")
+    assert listed.status_code == 200
+    assert listed.json() == []
+
+
+def test_honeypot_field_does_not_trigger_rate_limit(client):
+    payload = {
+        "name": "Bot",
+        "email": "bot@example.com",
+        "body": "Spam!",
+        "website": "http://spam.example.com",
+    }
+
+    first = client.post("/comments", json=payload, headers={"X-Real-IP": "7.7.7.7"})
+    assert first.status_code == 201
+
+    # A real submission from the same IP right after should still succeed,
+    # proving the honeypot POST never touched the rate limiter for this IP.
+    real = client.post(
+        "/comments",
+        json={"name": "Jane", "email": "jane@example.com", "body": "Great tool!"},
+        headers={"X-Real-IP": "7.7.7.7"},
+    )
+    assert real.status_code == 201
+
+
+def test_absent_website_field_still_works_as_before(client):
+    response = client.post(
+        "/comments",
+        json={"name": "Jane", "email": "jane@example.com", "body": "Great tool!"},
+    )
+
+    assert response.status_code == 201
+    listed = client.get("/comments")
+    assert len(listed.json()) == 1
+
+
 def test_get_comments_never_includes_email(client):
     client.post(
         "/comments",

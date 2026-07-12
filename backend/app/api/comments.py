@@ -1,5 +1,6 @@
 import re
 import time
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
@@ -42,6 +43,7 @@ class CommentIn(BaseModel):
     name: str = Field(..., max_length=100)
     email: str = Field(..., max_length=200)
     body: str = Field(..., max_length=2000)
+    website: str = Field(default="", max_length=200)
 
     @field_validator("name", "email", "body")
     @classmethod
@@ -72,6 +74,20 @@ def create_comment(
     request: Request,
     store: CommentsStore = Depends(get_store),
 ) -> dict:
+    # Honeypot: this field is invisible to real visitors, so only bots that
+    # blindly auto-fill every form input will populate it. Return a
+    # normal-looking success response (same shape/status as a real comment)
+    # without touching the store or the rate limiter, and without logging or
+    # persisting anything about the attempt — a bot that sees a convincing
+    # fake success has no signal it was caught, so it won't adapt.
+    if payload.website.strip():
+        return {
+            "id": 0,
+            "name": payload.name,
+            "body": payload.body,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+
     client_ip = _client_ip(request)
     now = time.time()
 
