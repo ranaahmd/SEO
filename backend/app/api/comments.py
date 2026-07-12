@@ -21,12 +21,20 @@ def get_store() -> CommentsStore:
 
 
 def _client_ip(request: Request) -> str:
-    forwarded_for = request.headers.get("x-forwarded-for")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
+    # X-Real-IP is set by nginx via `proxy_set_header X-Real-IP $remote_addr;`,
+    # which always overwrites any client-supplied value with the true socket
+    # peer address, so it cannot be spoofed. Trust it first.
     real_ip = request.headers.get("x-real-ip")
     if real_ip:
         return real_ip.strip()
+    # X-Forwarded-For is set via `proxy_set_header X-Forwarded-For
+    # $proxy_add_x_forwarded_for;`, which *appends* to any incoming value
+    # rather than overwriting it. A client can prepend arbitrary values, so
+    # only the last hop (added by our own nginx) can be trusted here. This is
+    # a fallback in case X-Real-IP is ever absent.
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        return forwarded_for.split(",")[-1].strip()
     return request.client.host if request.client else "unknown"
 
 
@@ -66,6 +74,15 @@ def create_comment(
 ) -> dict:
     client_ip = _client_ip(request)
     now = time.time()
+
+    # Prune expired entries so _last_submission doesn't grow unbounded over
+    # the life of the process, one entry per distinct IP ever seen.
+    expired = [
+        ip for ip, ts in _last_submission.items() if now - ts >= RATE_LIMIT_SECONDS
+    ]
+    for ip in expired:
+        del _last_submission[ip]
+
     last = _last_submission.get(client_ip)
     if last is not None and now - last < RATE_LIMIT_SECONDS:
         raise HTTPException(status_code=429, detail="Please wait before commenting again.")

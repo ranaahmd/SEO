@@ -1,3 +1,5 @@
+import time
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -94,6 +96,55 @@ def test_same_forwarded_ip_rapid_repeat_returns_429(client):
 
     assert first.status_code == 201
     assert second.status_code == 429
+
+
+def test_spoofed_forwarded_for_cannot_bypass_rate_limit_when_real_ip_matches(client):
+    # Simulates real nginx behavior: X-Real-IP is always the true socket
+    # peer (nginx overwrites it, so it can't be spoofed), while
+    # X-Forwarded-For can be freely set/prepended by the client. A previous
+    # version of the rate limiter trusted the first X-Forwarded-For hop,
+    # letting an attacker bypass the limit by varying that header on every
+    # request. With the same real IP but different (attacker-controlled)
+    # X-Forwarded-For values, the second request must still be rate limited.
+    payload = {"name": "Jane", "email": "jane@example.com", "body": "Great tool!"}
+
+    first = client.post(
+        "/comments",
+        json=payload,
+        headers={"X-Real-IP": "9.9.9.9", "X-Forwarded-For": "spoofed-1"},
+    )
+    second = client.post(
+        "/comments",
+        json=payload,
+        headers={"X-Real-IP": "9.9.9.9", "X-Forwarded-For": "spoofed-2"},
+    )
+
+    assert first.status_code == 201
+    assert second.status_code == 429
+
+
+def test_last_submission_entries_are_pruned_after_expiry(client):
+    payload = {"name": "Jane", "email": "jane@example.com", "body": "Great tool!"}
+
+    response = client.post(
+        "/comments", json=payload, headers={"X-Real-IP": "42.42.42.42"}
+    )
+    assert response.status_code == 201
+    assert "42.42.42.42" in comments_api._last_submission
+
+    # Backdate the recorded submission time so it looks like it happened
+    # longer ago than the rate-limit window, without a real sleep.
+    comments_api._last_submission["42.42.42.42"] = (
+        time.time() - comments_api.RATE_LIMIT_SECONDS - 1
+    )
+
+    # A submission from a *different* IP triggers the pruning sweep inside
+    # create_comment, which should evict the now-expired entry above.
+    other_response = client.post(
+        "/comments", json=payload, headers={"X-Real-IP": "1.1.1.1"}
+    )
+    assert other_response.status_code == 201
+    assert "42.42.42.42" not in comments_api._last_submission
 
 
 def test_get_comments_never_includes_email(client):
