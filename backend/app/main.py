@@ -9,6 +9,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 
 from app.services.seo_engine import run_audit
+from app.api.comments import router as comments_router
 
 app = FastAPI()
 
@@ -19,6 +20,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(comments_router)
 
 _HEADERS = {
     "User-Agent": (
