@@ -2,10 +2,15 @@ import { useState } from 'react';
 import axios from 'axios';
 import { Routes, Route, Link } from 'react-router-dom';
 import CategoryCard from './CategoryCard';
+import CommentSection from './CommentSection';
 import PrivacyPolicy from './PrivacyPolicy';
 import About from './About';
 import Contact from './Contact';
 import NotFound from './NotFound';
+import Resources from './Resources';
+import TechnicalSeoChecklist from './resources/TechnicalSeoChecklist';
+import MetaTagsGuide from './resources/MetaTagsGuide';
+import PageSpeedGuide from './resources/PageSpeedGuide';
 import './App.css';
 
 // ── SVG icons ────────────────────────────────────────────────────────────────
@@ -213,12 +218,16 @@ const Home = () => {
                         ))}
                     </div>
                 )}
+
+                {/* Comment section — shown before first audit */}
+                {!data && <CommentSection />}
             </div>
 
             {/* Footer */}
             <footer className="relative z-10 w-full py-6 text-center border-t border-white/5 bg-[#020617]/50 backdrop-blur-sm mt-auto">
                 <div className="flex justify-center flex-wrap gap-6 text-sm">
                     <Link to="/" className="text-gray-500 hover:text-blue-400 transition-colors">Home</Link>
+                    <Link to="/resources" className="text-gray-500 hover:text-blue-400 transition-colors">Guides</Link>
                     <Link to="/about" className="text-gray-500 hover:text-blue-400 transition-colors">About</Link>
                     <Link to="/contact" className="text-gray-500 hover:text-blue-400 transition-colors">Contact</Link>
                     <Link to="/privacy-policy" className="text-gray-500 hover:text-blue-400 transition-colors">Privacy Policy</Link>
@@ -236,6 +245,10 @@ function App() {
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/resources" element={<Resources />} />
+            <Route path="/resources/technical-seo-checklist" element={<TechnicalSeoChecklist />} />
+            <Route path="/resources/meta-tags-guide" element={<MetaTagsGuide />} />
+            <Route path="/resources/page-speed-guide" element={<PageSpeedGuide />} />
             <Route path="*" element={<NotFound />} />
         </Routes>
     );
