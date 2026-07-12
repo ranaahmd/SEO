@@ -9,6 +9,8 @@ services:
     restart: unless-stopped
     expose:
       - "8000"
+    volumes:
+      - boostseo-comments-data:/app/data
 
   boostseo-frontend:
     build:
@@ -19,3 +21,6 @@ services:
       - "3012:80"
     depends_on:
       - boostseo-backend
+
+volumes:
+  boostseo-comments-data:
