@@ -20,6 +20,16 @@ def get_store() -> CommentsStore:
     return _store
 
 
+def _client_ip(request: Request) -> str:
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    real_ip = request.headers.get("x-real-ip")
+    if real_ip:
+        return real_ip.strip()
+    return request.client.host if request.client else "unknown"
+
+
 class CommentIn(BaseModel):
     name: str = Field(..., max_length=100)
     email: str = Field(..., max_length=200)
@@ -54,7 +64,7 @@ def create_comment(
     request: Request,
     store: CommentsStore = Depends(get_store),
 ) -> dict:
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = _client_ip(request)
     now = time.time()
     last = _last_submission.get(client_ip)
     if last is not None and now - last < RATE_LIMIT_SECONDS:

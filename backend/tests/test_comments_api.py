@@ -76,6 +76,26 @@ def test_rapid_repeat_submission_returns_429(client):
     assert second.status_code == 429
 
 
+def test_different_forwarded_ips_are_not_rate_limited_against_each_other(client):
+    payload = {"name": "Jane", "email": "jane@example.com", "body": "Great tool!"}
+
+    first = client.post("/comments", json=payload, headers={"X-Forwarded-For": "1.2.3.4"})
+    second = client.post("/comments", json=payload, headers={"X-Forwarded-For": "5.6.7.8"})
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+
+
+def test_same_forwarded_ip_rapid_repeat_returns_429(client):
+    payload = {"name": "Jane", "email": "jane@example.com", "body": "Great tool!"}
+
+    first = client.post("/comments", json=payload, headers={"X-Forwarded-For": "9.9.9.9"})
+    second = client.post("/comments", json=payload, headers={"X-Forwarded-For": "9.9.9.9"})
+
+    assert first.status_code == 201
+    assert second.status_code == 429
+
+
 def test_get_comments_never_includes_email(client):
     client.post(
         "/comments",
